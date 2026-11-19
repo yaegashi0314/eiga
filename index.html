@@ -1,0 +1,372 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>WORLD CINEMA DATA | 映画データ比較</title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- CSV読み込み -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <!-- JavaScript -->
+  <script src="js/script.js" defer></script>
+</head>
+
+<body>
+
+  <!-- ヘッダー -->
+  <header class="header">
+    <div class="header-inner">
+      <a href="#" class="logo">WORLD CINEMA DATA</a>
+      <span class="header-label">GLOBAL MOVIE ANALYSIS</span>
+    </div>
+  </header>
+
+
+  <main class="container">
+
+    <!-- タイトル -->
+    <section class="hero">
+      <p class="eyebrow">MOVIE DATA VISUALIZATION</p>
+
+      <h1>世界の映画を比較する</h1>
+
+      <p class="hero-description">
+        6か国の映画データから、ジャンルの特徴や人気作品の違いを分析します。
+      </p>
+    </section>
+
+
+    <!-- 読み込み状態 -->
+    <div id="loadingMessage" class="message">
+      映画データを読み込んでいます...
+    </div>
+
+    <div id="errorMessage" class="message error" hidden></div>
+
+
+    <!-- データ概要 -->
+    <section class="stats-grid">
+
+      <div class="stat-card">
+        <span class="stat-label">対象国</span>
+        <strong>06</strong>
+        <small>COUNTRIES</small>
+      </div>
+
+      <div class="stat-card">
+        <span class="stat-label">収録映画数</span>
+        <strong id="movieCount">---</strong>
+        <small>MOVIES</small>
+      </div>
+
+      <div class="stat-card">
+        <span class="stat-label">ジャンル数</span>
+        <strong id="genreCount">---</strong>
+        <small>GENRES</small>
+      </div>
+
+    </section>
+
+
+    <!-- ================================= -->
+    <!-- 画面1：国別ジャンル構成 -->
+    <!-- ================================= -->
+
+    <section id="genreView" class="view-section">
+
+      <div class="section-title">
+        <div>
+          <p class="eyebrow">01 / GENRE ANALYSIS</p>
+          <h2>国別ジャンル構成</h2>
+          <p>国ごとに、どのジャンルの映画が多いかを確認できます。</p>
+        </div>
+
+        <select id="countrySelect" class="select-box">
+          <option value="JP">日本</option>
+          <option value="US">アメリカ</option>
+          <option value="KR">韓国</option>
+          <option value="IN">インド</option>
+          <option value="FR">フランス</option>
+          <option value="GB">イギリス</option>
+        </select>
+      </div>
+
+
+      <div class="panel">
+
+        <div class="panel-heading">
+          <h3 id="genreChartTitle">日本のジャンル構成</h3>
+          <span class="panel-label">GENRE DISTRIBUTION</span>
+        </div>
+
+        <div class="chart-container">
+          <canvas id="genreChart"></canvas>
+        </div>
+
+        <p class="chart-note">
+          グラフのジャンルをクリックすると、6か国の人気比較に切り替わります。
+        </p>
+
+      </div>
+
+    </section>
+
+
+    <!-- ================================= -->
+    <!-- 画面2：ジャンル別6か国比較 -->
+    <!-- ================================= -->
+
+    <section id="comparisonView" class="view-section" hidden>
+
+      <div class="section-title">
+
+        <div>
+          <p class="eyebrow">02 / COUNTRY COMPARISON</p>
+          <h2 id="comparisonTitle">ジャンル別人気比較</h2>
+          <p>選択したジャンルについて、6か国のPopularityを比較します。</p>
+        </div>
+
+        <button id="backButton" class="secondary-button">
+          ← ジャンル一覧に戻る
+        </button>
+
+      </div>
+
+
+      <div class="panel">
+
+        <div class="panel-heading">
+          <h3>6か国の人気度比較</h3>
+          <span class="panel-label">AVERAGE POPULARITY</span>
+        </div>
+
+        <div class="chart-container">
+          <canvas id="countryChart"></canvas>
+        </div>
+
+        <p class="chart-note">
+          国のグラフをクリックすると、その国の映画ランキングを表示します。
+          対象作品数も確認できます。
+        </p>
+
+      </div>
+
+    </section>
+
+
+    <!-- ================================= -->
+    <!-- 映画ランキング -->
+    <!-- ================================= -->
+
+    <section id="rankingSection" class="ranking-section" hidden>
+
+      <div class="section-title">
+
+        <div>
+          <p class="eyebrow">03 / MOVIE RANKING</p>
+          <h2 id="rankingTitle">日本の映画ランキング TOP 5</h2>
+          <p id="rankingDescription">
+            人気度の高い映画を表示します。
+          </p>
+        </div>
+
+      </div>
+
+
+      <div class="panel ranking-panel">
+
+        <div class="table-wrapper">
+
+          <table class="ranking-table">
+
+            <thead>
+              <tr>
+                <th>RANK</th>
+                <th>映画タイトル</th>
+                <th>公開年</th>
+                <th>評価</th>
+                <th>投票数</th>
+                <th>人気度</th>
+                <th>興行収入</th>
+              </tr>
+            </thead>
+
+            <tbody id="ranking">
+
+              <tr>
+                <td colspan="7">データを読み込んでいます...</td>
+              </tr>
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+        <p class="chart-note">
+          映画タイトルをクリックすると、作品の概要や詳細情報を確認できます。
+        </p>
+
+      </div>
+
+    </section>
+
+
+    <!-- ================================= -->
+    <!-- 映画詳細モーダル -->
+    <!-- ================================= -->
+
+    <div id="movieModal" class="modal" hidden>
+
+      <div id="modalOverlay" class="modal-overlay"></div>
+
+      <div class="modal-content">
+
+        <button id="closeModal" class="close-button" aria-label="閉じる">
+          ×
+        </button>
+
+
+        <div class="movie-detail">
+
+          <!-- ポスター -->
+          <div class="poster-area">
+
+            <img
+              id="detailPoster"
+              src=""
+              alt="映画ポスター"
+              hidden
+            >
+
+            <div id="posterPlaceholder" class="poster-placeholder">
+              NO POSTER
+            </div>
+
+          </div>
+
+
+          <!-- 映画情報 -->
+          <div class="movie-info">
+
+            <p class="eyebrow">MOVIE INFORMATION</p>
+
+            <h2 id="detailTitle">映画タイトル</h2>
+
+            <p id="detailOriginalTitle" class="original-title"></p>
+
+
+            <!-- 基本情報 -->
+            <div class="detail-tags">
+
+              <span id="detailYear">公開年</span>
+
+              <span id="detailGenres">ジャンル</span>
+
+              <span id="detailRuntime">上映時間</span>
+
+            </div>
+
+
+            <!-- あらすじ -->
+            <div class="overview-section">
+
+              <h3>作品概要</h3>
+
+              <p id="detailOverview">
+                映画の概要がここに表示されます。
+              </p>
+
+            </div>
+
+
+            <!-- 数値情報 -->
+            <div class="detail-stats">
+
+              <div class="detail-stat">
+                <span>評価</span>
+                <strong id="detailRating">---</strong>
+              </div>
+
+              <div class="detail-stat">
+                <span>投票数</span>
+                <strong id="detailVotes">---</strong>
+              </div>
+
+              <div class="detail-stat">
+                <span>Popularity</span>
+                <strong id="detailPopularity">---</strong>
+              </div>
+
+              <div class="detail-stat">
+                <span>興行収入</span>
+                <strong id="detailRevenue">---</strong>
+              </div>
+
+            </div>
+
+
+            <!-- キャッチコピー -->
+            <p id="detailTagline" class="movie-tagline"></p>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- ================================= -->
+    <!-- 調査方法・データについて -->
+    <!-- ================================= -->
+
+    <section class="about-section">
+
+      <p class="eyebrow">ABOUT THIS PROJECT</p>
+
+      <h2>調査について</h2>
+
+      <p>
+        このサイトでは、日本・アメリカ・韓国・インド・フランス・
+        イギリスの6か国を対象に、映画のジャンルや人気度を比較します。
+      </p>
+
+      <p>
+        映画の製作国、ジャンル、評価、投票数、Popularity、
+        興行収入などのデータを使用しています。
+      </p>
+
+      <p>
+        データは公開されている映画データセットを利用しています。
+        収録作品や数値には欠損があるため、すべての映画を網羅したものではありません。
+      </p>
+
+      <p class="source-note">
+        DATA SOURCE: THE MOVIES DATASET
+      </p>
+
+    </section>
+
+  </main>
+
+
+  <!-- フッター -->
+  <footer class="footer">
+    <p>WORLD CINEMA DATA</p>
+    <span>Movie Data Visualization Project</span>
+  </footer>
+
+</body>
+</html>

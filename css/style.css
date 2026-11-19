@@ -1,0 +1,504 @@
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: #101216;
+    color: #f1f3f5;
+    font-family: "Noto Sans JP", "Yu Gothic", sans-serif;
+    line-height: 1.6;
+}
+
+button,
+select {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+.container {
+    width: min(1200px, 92%);
+    margin: 0 auto;
+}
+
+/* ヘッダー */
+
+header {
+    background: #181b22;
+    border-bottom: 1px solid #30343d;
+    padding: 24px 0;
+}
+
+header h1 {
+    font-size: 28px;
+    letter-spacing: 1px;
+}
+
+header p {
+    color: #aeb4c0;
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+/* メイン */
+
+main {
+    padding: 35px 0 60px;
+}
+
+section {
+    margin-bottom: 35px;
+}
+
+.section-heading {
+    margin-bottom: 20px;
+}
+
+.section-heading h2 {
+    font-size: 23px;
+    margin-bottom: 6px;
+}
+
+.section-heading p {
+    color: #aeb4c0;
+    font-size: 14px;
+}
+
+/* 国選択 */
+
+.control-area {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 22px;
+}
+
+.control-area label {
+    font-weight: bold;
+}
+
+select {
+    background: #20242d;
+    color: #fff;
+    border: 1px solid #454b58;
+    border-radius: 7px;
+    padding: 10px 14px;
+    min-width: 180px;
+}
+
+select:focus {
+    outline: 2px solid #719cff;
+}
+
+/* グラフカード */
+
+.chart-card {
+    background: #191d25;
+    border: 1px solid #303642;
+    border-radius: 12px;
+    padding: 22px;
+    margin-bottom: 20px;
+}
+
+.chart-card h3 {
+    font-size: 17px;
+    margin-bottom: 15px;
+}
+
+.chart-area {
+    position: relative;
+    width: 100%;
+    height: 390px;
+}
+
+.chart-note {
+    color: #929baa;
+    font-size: 12px;
+    margin-top: 12px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* 戻るボタン */
+
+.back-button {
+    background: #292f3b;
+    color: #fff;
+    border: 1px solid #454d5c;
+    border-radius: 7px;
+    padding: 9px 16px;
+    margin-bottom: 18px;
+    transition: background 0.2s;
+}
+
+.back-button:hover {
+    background: #3a4352;
+}
+
+/* ランキング */
+
+.ranking-section {
+    margin-top: 35px;
+}
+
+.ranking-table-wrapper {
+    overflow-x: auto;
+    background: #191d25;
+    border: 1px solid #303642;
+    border-radius: 12px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 650px;
+}
+
+thead {
+    background: #252b36;
+}
+
+th,
+td {
+    padding: 14px 16px;
+    text-align: left;
+    border-bottom: 1px solid #303642;
+}
+
+th {
+    color: #bfc7d4;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+td {
+    font-size: 14px;
+}
+
+tbody tr {
+    transition: background 0.2s;
+}
+
+tbody tr:hover {
+    background: #292f3b;
+}
+
+.movie-row {
+    cursor: pointer;
+}
+
+.movie-title {
+    color: #fff;
+    font-weight: bold;
+}
+
+.rank-number {
+    color: #8fb2ff;
+    font-weight: bold;
+}
+
+/* 映画詳細モーダル */
+
+.modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.modal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.82);
+}
+
+.modal-content {
+    position: relative;
+    z-index: 1;
+    width: min(850px, 100%);
+    max-height: 90vh;
+    overflow-y: auto;
+    background: #1b2029;
+    border: 1px solid #3b4350;
+    border-radius: 14px;
+    padding: 28px;
+}
+
+.close-button {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    background: transparent;
+    color: #fff;
+    border: none;
+    font-size: 30px;
+    line-height: 1;
+}
+
+.close-button:hover {
+    color: #8fb2ff;
+}
+
+.movie-detail {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    gap: 28px;
+    margin-top: 15px;
+}
+
+.poster-area {
+    width: 100%;
+}
+
+.poster-area img {
+    width: 100%;
+    display: block;
+    border-radius: 9px;
+    object-fit: cover;
+    background: #292f3b;
+}
+
+#posterPlaceholder {
+    min-height: 340px;
+    background: #292f3b;
+    color: #9da6b5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    text-align: center;
+    padding: 15px;
+}
+
+.movie-info h2 {
+    font-size: 25px;
+    margin-bottom: 4px;
+    padding-right: 25px;
+}
+
+#detailOriginalTitle {
+    color: #aeb7c5;
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+
+.detail-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin: 12px 0 18px;
+}
+
+.detail-tags span {
+    background: #30394a;
+    color: #cbd8f5;
+    border-radius: 20px;
+    padding: 5px 10px;
+    font-size: 12px;
+}
+
+.movie-tagline {
+    color: #aeb7c5;
+    font-style: italic;
+    margin-bottom: 14px;
+}
+
+.overview-section {
+    margin-top: 18px;
+}
+
+.overview-section h3 {
+    font-size: 16px;
+    margin-bottom: 8px;
+}
+
+.overview-section p {
+    color: #d0d5de;
+    font-size: 14px;
+    white-space: pre-line;
+}
+
+.detail-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.detail-stat {
+    background: #252b36;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.detail-stat span {
+    display: block;
+    color: #9da8b8;
+    font-size: 12px;
+}
+
+.detail-stat strong {
+    display: block;
+    font-size: 16px;
+    margin-top: 3px;
+}
+
+/* 説明・フッター */
+
+.about-section {
+    background: #191d25;
+    border: 1px solid #303642;
+    border-radius: 12px;
+    padding: 22px;
+}
+
+.about-section h2 {
+    font-size: 19px;
+    margin-bottom: 10px;
+}
+
+.about-section p {
+    color: #aeb4c0;
+    font-size: 14px;
+}
+
+footer {
+    border-top: 1px solid #30343d;
+    color: #858e9d;
+    text-align: center;
+    padding: 22px 0;
+    font-size: 12px;
+}
+
+/* 読み込み・エラー表示 */
+
+.status-message {
+    color: #aeb7c5;
+    background: #191d25;
+    border: 1px solid #303642;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 18px;
+}
+
+.error-message {
+    color: #ff9999;
+}
+
+/* スマートフォン */
+
+@media (max-width: 650px) {
+    header h1 {
+        font-size: 22px;
+    }
+
+    main {
+        padding-top: 24px;
+    }
+
+    .chart-card {
+        padding: 14px;
+    }
+
+    .chart-area {
+        height: 300px;
+    }
+
+    .movie-detail {
+        grid-template-columns: 1fr;
+        gap: 18px;
+    }
+
+    .poster-area {
+        width: min(220px, 75%);
+        margin: 0 auto;
+    }
+
+    #posterPlaceholder {
+        min-height: 280px;
+    }
+
+    .modal-content {
+        padding: 22px 16px;
+    }
+
+    .movie-info h2 {
+        font-size: 21px;
+    }
+
+    .detail-stats {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+[hidden] {
+    display: none !important;
+}
+
+/* =========================================
+   グラフ表示サイズ修正
+========================================= */
+
+/* グラフのカード */
+.panel {
+    background: #191d25;
+    border: 1px solid #303642;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 25px;
+}
+
+/* グラフの表示領域 */
+.chart-container {
+    position: relative;
+    width: 100%;
+    height: 600px;
+}
+
+/* ジャンルグラフ */
+#genreChart {
+    width: 100% !important;
+    height: 600px !important;
+}
+
+/* 6か国比較グラフ */
+#countryChart {
+    width: 100% !important;
+    height: 450px !important;
+}
+
+/* グラフの説明 */
+.chart-note {
+    color: #929baa;
+    font-size: 13px;
+    margin-top: 18px;
+}
+
+/* スマートフォン */
+@media (max-width: 650px) {
+    .panel {
+        padding: 14px;
+    }
+
+    .chart-container {
+        height: 480px;
+    }
+
+    #genreChart {
+        height: 480px !important;
+    }
+
+    #countryChart {
+        height: 380px !important;
+    }
+}
