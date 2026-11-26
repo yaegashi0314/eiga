@@ -157,7 +157,9 @@ async function getMovies(country, genre = null, page = 1) {
         params.set("genre", genre);
     }
 
-    const data = await fetchAPI(`/api/discover?${params.toString()}`);
+    const data = await fetchAPI(
+        `/api/discover?${params.toString()}`
+    );
 
     cache.set(key, data);
 
@@ -165,7 +167,7 @@ async function getMovies(country, genre = null, page = 1) {
 }
 
 // ========================================
-// 同時通信数を制限する処理
+// 同時通信数を制限
 // ========================================
 
 async function runWithLimit(items, limit, callback) {
@@ -176,7 +178,9 @@ async function runWithLimit(items, limit, callback) {
         while (index < items.length) {
             const currentIndex = index++;
 
-            results[currentIndex] = await callback(items[currentIndex]);
+            results[currentIndex] = await callback(
+                items[currentIndex]
+            );
         }
     }
 
@@ -198,6 +202,7 @@ async function runWithLimit(items, limit, callback) {
 async function initialize() {
     try {
         hideError();
+
         setLoading(true);
 
         // ジャンル一覧を取得
@@ -210,22 +215,24 @@ async function initialize() {
         // 初期国の映画を取得
         const initialData = await getMovies(currentCountry);
 
-        movieCount.textContent = formatNumber(initialData.total_results);
+        movieCount.textContent = formatNumber(
+            initialData.total_results
+        );
 
-        // 初期ランキングを表示
+        // 初期ランキング
         renderRanking(
             initialData.results || [],
             currentCountry,
             null
         );
 
-        // ジャンルグラフを表示
+        // ジャンルグラフ
         await drawGenreChart(currentCountry);
 
         setLoading(false);
 
     } catch (error) {
-        console.error(error);
+        console.error("初期化エラー:", error);
 
         setLoading(false);
 
@@ -254,7 +261,10 @@ async function drawGenreChart(country) {
             genres,
             4,
             async (genre) => {
-                const data = await getMovies(country, genre.id);
+                const data = await getMovies(
+                    country,
+                    genre.id
+                );
 
                 return {
                     id: genre.id,
@@ -278,11 +288,17 @@ async function drawGenreChart(country) {
             type: "bar",
 
             data: {
-                labels: sortedResults.map(item => item.name),
+                labels: sortedResults.map(
+                    item => item.name
+                ),
 
                 datasets: [{
                     label: "映画作品数",
-                    data: sortedResults.map(item => item.count),
+
+                    data: sortedResults.map(
+                        item => item.count
+                    ),
+
                     backgroundColor: "#719cff",
                     borderRadius: 6,
                     barThickness: 20
@@ -333,11 +349,20 @@ async function drawGenreChart(country) {
                     }
                 },
 
-                onClick: function(event, elements) {
-                    if (!elements.length) return;
+                // ジャンルをクリック
+                onClick: function(event, elements, chart) {
+                    const points = chart.getElementsAtEventForMode(
+                        event,
+                        "nearest",
+                        { intersect: true },
+                        true
+                    );
 
-                    const index = elements[0].index;
+                    if (!points.length) {
+                        return;
+                    }
 
+                    const index = points[0].index;
                     const selected = sortedResults[index];
 
                     const selectedGenre = genres.find(
@@ -354,7 +379,7 @@ async function drawGenreChart(country) {
         setLoading(false);
 
     } catch (error) {
-        console.error(error);
+        console.error("ジャンルグラフエラー:", error);
 
         setLoading(false);
 
@@ -379,7 +404,10 @@ async function openGenreComparison(genre) {
         comparisonTitle.textContent =
             `${genre.name}映画の6か国人気比較`;
 
-        setLoading(true, "6か国の映画データを比較しています...");
+        setLoading(
+            true,
+            "6か国の映画データを比較しています..."
+        );
 
         const countryEntries = Object.entries(countries);
 
@@ -387,36 +415,46 @@ async function openGenreComparison(genre) {
             countryEntries,
             3,
             async ([code, name]) => {
-                const data = await getMovies(code, genre.id);
+                const data = await getMovies(
+                    code,
+                    genre.id
+                );
 
                 const movies = data.results || [];
 
                 const averagePopularity = movies.length
                     ? movies.reduce(
-                        (sum, movie) => sum + (movie.popularity || 0),
+                        (sum, movie) => {
+                            return sum + (movie.popularity || 0);
+                        },
                         0
                     ) / movies.length
                     : 0;
 
                 return {
-                    code,
-                    name,
+                    code: code,
+                    name: name,
                     count: data.total_results || 0,
-                    popularity: Number(averagePopularity.toFixed(2))
+                    popularity: Number(
+                        averagePopularity.toFixed(2)
+                    )
                 };
             }
         );
 
+        // 比較グラフを作成
         drawCountryChart(results);
 
         setLoading(false);
 
     } catch (error) {
-        console.error(error);
+        console.error("6か国比較エラー:", error);
 
         setLoading(false);
 
-        showError("6か国の比較データを取得できませんでした。");
+        showError(
+            "6か国の比較データを取得できませんでした。"
+        );
     }
 }
 
@@ -435,11 +473,17 @@ function drawCountryChart(results) {
         type: "bar",
 
         data: {
-            labels: results.map(item => item.name),
+            labels: results.map(
+                item => item.name
+            ),
 
             datasets: [{
                 label: "平均Popularity",
-                data: results.map(item => item.popularity),
+
+                data: results.map(
+                    item => item.popularity
+                ),
+
                 backgroundColor: [
                     "#719cff",
                     "#8c7cff",
@@ -448,6 +492,7 @@ function drawCountryChart(results) {
                     "#d77c91",
                     "#8ba6bd"
                 ],
+
                 borderRadius: 7,
                 barThickness: 48
             }]
@@ -457,6 +502,47 @@ function drawCountryChart(results) {
             responsive: true,
             maintainAspectRatio: false,
 
+            // 棒グラフをクリックしたときの処理
+            onClick: function(event, elements, chart) {
+                // クリックされた棒を取得
+                let points = elements;
+
+                // elementsで取得できなかった場合も再判定
+                if (!points || points.length === 0) {
+                    points = chart.getElementsAtEventForMode(
+                        event,
+                        "nearest",
+                        { intersect: true },
+                        true
+                    );
+                }
+
+                // 棒がクリックされていない場合
+                if (!points || points.length === 0) {
+                    console.log("棒グラフがクリックされていません");
+                    return;
+                }
+
+                // クリックされた棒の番号
+                const index = points[0].index;
+
+                // 対応する国のデータ
+                const selected = results[index];
+
+                if (!selected) {
+                    return;
+                }
+
+                console.log(
+                    "クリックされた国:",
+                    selected.name,
+                    selected.code
+                );
+
+                // 国別ランキングを表示
+                showCountryRanking(selected.code);
+            },
+
             plugins: {
                 legend: {
                     display: false
@@ -465,7 +551,9 @@ function drawCountryChart(results) {
                 tooltip: {
                     callbacks: {
                         afterLabel: function(context) {
-                            const item = results[context.dataIndex];
+                            const item = results[
+                                context.dataIndex
+                            ];
 
                             return `対象作品数: ${formatNumber(item.count)}`;
                         }
@@ -495,16 +583,6 @@ function drawCountryChart(results) {
                         color: "#303642"
                     }
                 }
-            },
-
-            onClick: function(event, elements) {
-                if (!elements.length) return;
-
-                const index = elements[0].index;
-
-                const selected = results[index];
-
-                showCountryRanking(selected.code);
             }
         }
     });
@@ -520,13 +598,35 @@ async function showCountryRanking(country) {
 
         currentCountry = country;
 
-        setLoading(true, "映画ランキングを取得しています...");
+        console.log(
+            "ランキング取得開始:",
+            countries[country],
+            country
+        );
 
+        // ランキングを表示できる状態にする
+        rankingSection.hidden = false;
+
+        rankingTitle.textContent =
+            `${countries[country]}の映画ランキング TOP 5`;
+
+        rankingDescription.textContent =
+            "映画データを取得しています...";
+
+        setLoading(
+            true,
+            `${countries[country]}のランキングを取得しています...`
+        );
+
+        // 選択された国の映画を取得
         const data = await getMovies(
             country,
             currentGenre ? currentGenre.id : null
         );
 
+        console.log("ランキングデータ:", data);
+
+        // ランキング表示
         renderRanking(
             data.results || [],
             country,
@@ -535,17 +635,20 @@ async function showCountryRanking(country) {
 
         setLoading(false);
 
+        // ランキングまでスクロール
         rankingSection.scrollIntoView({
             behavior: "smooth",
             block: "start"
         });
 
     } catch (error) {
-        console.error(error);
+        console.error("ランキング取得エラー:", error);
 
         setLoading(false);
 
-        showError("映画ランキングを取得できませんでした。");
+        showError(
+            "映画ランキングを取得できませんでした。"
+        );
     }
 }
 
@@ -569,7 +672,12 @@ function renderRanking(movies, country, genre) {
 
     rankingBody.innerHTML = "";
 
-    const topMovies = movies.slice(0, 5);
+    // Popularity順に並べる
+    const sortedMovies = [...movies].sort(
+        (a, b) => (b.popularity || 0) - (a.popularity || 0)
+    );
+
+    const topMovies = sortedMovies.slice(0, 5);
 
     if (topMovies.length === 0) {
         const row = document.createElement("tr");
@@ -615,7 +723,8 @@ function renderRanking(movies, country, genre) {
             row.appendChild(cell);
         });
 
-        row.addEventListener("click", () => {
+        // 映画をクリックすると詳細を表示
+        row.addEventListener("click", function() {
             openMovieDetail(movie.id);
         });
 
@@ -634,9 +743,12 @@ async function openMovieDetail(movieId) {
         movieModal.hidden = false;
 
         detailTitle.textContent = "読み込み中...";
-        detailOverview.textContent = "映画情報を取得しています...";
+        detailOverview.textContent =
+            "映画情報を取得しています...";
 
-        const movie = await fetchAPI(`/api/movie/${movieId}`);
+        const movie = await fetchAPI(
+            `/api/movie/${movieId}`
+        );
 
         // タイトル
         detailTitle.textContent =
@@ -652,7 +764,9 @@ async function openMovieDetail(movieId) {
         // ジャンル
         detailGenres.textContent =
             movie.genres && movie.genres.length
-                ? movie.genres.map(genre => genre.name).join(" / ")
+                ? movie.genres.map(
+                    genre => genre.name
+                ).join(" / ")
                 : "ジャンル不明";
 
         // 上映時間
@@ -665,16 +779,19 @@ async function openMovieDetail(movieId) {
         detailOverview.textContent =
             movie.overview || "作品概要は登録されていません。";
 
-        // 数値情報
+        // 評価
         detailRating.textContent =
             formatRating(movie.vote_average);
 
+        // 投票数
         detailVotes.textContent =
             formatNumber(movie.vote_count);
 
+        // 人気度
         detailPopularity.textContent =
             Number(movie.popularity || 0).toFixed(2);
 
+        // 興行収入
         detailRevenue.textContent =
             movie.revenue
                 ? `$${formatNumber(movie.revenue)}`
@@ -689,7 +806,9 @@ async function openMovieDetail(movieId) {
             detailPoster.src =
                 `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
 
-            detailPoster.alt = `${movie.title}のポスター`;
+            detailPoster.alt =
+                `${movie.title}のポスター`;
+
             detailPoster.hidden = false;
             posterPlaceholder.hidden = true;
 
@@ -697,15 +816,18 @@ async function openMovieDetail(movieId) {
                 detailPoster.hidden = true;
                 posterPlaceholder.hidden = false;
             };
+
         } else {
             detailPoster.hidden = true;
             posterPlaceholder.hidden = false;
         }
 
     } catch (error) {
-        console.error(error);
+        console.error("映画詳細取得エラー:", error);
 
-        detailTitle.textContent = "情報を取得できませんでした";
+        detailTitle.textContent =
+            "情報を取得できませんでした";
+
         detailOverview.textContent =
             "映画情報の取得に失敗しました。";
     }
@@ -719,11 +841,17 @@ function closeMovieModal() {
     movieModal.hidden = true;
 }
 
-closeModal.addEventListener("click", closeMovieModal);
+closeModal.addEventListener(
+    "click",
+    closeMovieModal
+);
 
-modalOverlay.addEventListener("click", closeMovieModal);
+modalOverlay.addEventListener(
+    "click",
+    closeMovieModal
+);
 
-document.addEventListener("keydown", event => {
+document.addEventListener("keydown", function(event) {
     if (event.key === "Escape") {
         closeMovieModal();
     }
@@ -742,6 +870,13 @@ countrySelect.addEventListener("change", async function() {
     rankingSection.hidden = true;
 
     try {
+        hideError();
+
+        setLoading(
+            true,
+            `${countries[currentCountry]}のデータを取得しています...`
+        );
+
         const data = await getMovies(currentCountry);
 
         movieCount.textContent =
@@ -755,9 +890,16 @@ countrySelect.addEventListener("change", async function() {
 
         await drawGenreChart(currentCountry);
 
+        setLoading(false);
+
     } catch (error) {
-        console.error(error);
-        showError("国別データの取得に失敗しました。");
+        console.error("国選択エラー:", error);
+
+        setLoading(false);
+
+        showError(
+            "国別データの取得に失敗しました。"
+        );
     }
 });
 
