@@ -1,931 +1,667 @@
 
-/* =========================================
-   WORLD CINEMA DATA
-   映画データ比較サイト
-========================================= */
+const API_BASE = "https://world-cinema-api.a250893h.workers.dev";
 
-// 国の設定
-const COUNTRIES = {
-    JP: "日本",
-    US: "アメリカ",
-    KR: "韓国",
-    IN: "インド",
-    FR: "フランス",
-    GB: "イギリス"
+// 国の情報
+const countries = {
+  JP: "日本",
+  US: "アメリカ",
+  KR: "韓国",
+  IN: "インド",
+  FR: "フランス",
+  GB: "イギリス"
 };
 
-// ジャンルの日本語表記
-const GENRE_NAMES = {
-    "Drama": "ドラマ",
-    "Comedy": "コメディ",
-    "Thriller": "スリラー",
-    "Romance": "恋愛",
-    "Action": "アクション",
-    "Horror": "ホラー",
-    "Crime": "犯罪",
-    "Documentary": "ドキュメンタリー",
-    "Adventure": "アドベンチャー",
-    "Science Fiction": "SF",
-    "Family": "ファミリー",
-    "Mystery": "ミステリー",
-    "Fantasy": "ファンタジー",
-    "Animation": "アニメーション",
-    "Music": "音楽",
-    "History": "歴史",
-    "War": "戦争",
-    "Western": "西部劇",
-    "TV Movie": "テレビ映画",
-    "Foreign": "外国映画"
+// ジャンル名の日本語変換
+const genreTranslations = {
+  "Action": "アクション",
+  "Adventure": "アドベンチャー",
+  "Animation": "アニメーション",
+  "Comedy": "コメディ",
+  "Crime": "犯罪",
+  "Documentary": "ドキュメンタリー",
+  "Drama": "ドラマ",
+  "Family": "ファミリー",
+  "Fantasy": "ファンタジー",
+  "History": "歴史",
+  "Horror": "ホラー",
+  "Music": "音楽",
+  "Mystery": "ミステリー",
+  "Romance": "恋愛",
+  "Science Fiction": "SF",
+  "TV Movie": "テレビ映画",
+  "Thriller": "スリラー",
+  "War": "戦争",
+  "Western": "西部劇"
 };
 
-// グラフの色
-const COLORS = [
-    "#719cff",
-    "#ff9b71",
-    "#70c6a3",
-    "#c18cff",
-    "#f2c66d",
-    "#ef7c9d"
-];
-
-// CSVデータ
-let movies = [];
-
-// グラフ
-let genreChart = null;
-let countryChart = null;
-
-// 選択中のジャンル
-let selectedGenre = "";
-
-
-/* =========================================
-   HTML要素
-========================================= */
-
+// DOM
 const loadingMessage = document.getElementById("loadingMessage");
 const errorMessage = document.getElementById("errorMessage");
 
-const movieCountElement = document.getElementById("movieCount");
-const genreCountElement = document.getElementById("genreCount");
+const movieCount = document.getElementById("movieCount");
+const genreCount = document.getElementById("genreCount");
 
 const countrySelect = document.getElementById("countrySelect");
 
 const genreView = document.getElementById("genreView");
 const comparisonView = document.getElementById("comparisonView");
-const rankingSection = document.getElementById("rankingSection");
 
-const genreCanvas = document.getElementById("genreChart");
-const countryCanvas = document.getElementById("countryChart");
+const genreChartTitle = document.getElementById("genreChartTitle");
+const comparisonTitle = document.getElementById("comparisonTitle");
 
+const rankingTitle = document.getElementById("rankingTitle");
+const rankingDescription = document.getElementById("rankingDescription");
 const rankingBody = document.getElementById("ranking");
+
+const backButton = document.getElementById("backButton");
 
 const movieModal = document.getElementById("movieModal");
 const modalOverlay = document.getElementById("modalOverlay");
 const closeModal = document.getElementById("closeModal");
 
-const backButton = document.getElementById("backButton");
+// グラフ
+let genreChart = null;
+let countryChart = null;
 
+// データ
+let genres = [];
+let currentGenre = null;
+let currentCountry = "JP";
 
-/* =========================================
-   初期設定
-========================================= */
+// キャッシュ
+const genreCountCache = new Map();
+const comparisonCache = new Map();
 
-document.addEventListener("DOMContentLoaded", () => {
+// API通信
+async function fetchAPI(path) {
+  const response = await fetch(`${API_BASE}${path}`);
 
-    // 初期表示
-    genreView.hidden = false;
-    comparisonView.hidden = true;
-    rankingSection.hidden = true;
-    movieModal.hidden = true;
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(`APIエラー (${response.status}): ${message}`);
+  }
 
-    // CSV読み込み
-    loadCSV();
-
-});
-
-
-/* =========================================
-   CSV読み込み
-========================================= */
-
-function loadCSV() {
-
-    Papa.parse("data/movies_metadata.csv", {
-
-        download: true,
-        header: true,
-        skipEmptyLines: true,
-
-        complete: function (results) {
-
-            try {
-
-                movies = results.data
-                    .map(convertMovie)
-                    .filter(movie => movie.title);
-
-                if (movies.length === 0) {
-                    throw new Error("映画データがありません。");
-                }
-
-                // 読み込み完了
-                loadingMessage.hidden = true;
-
-                // データ概要を更新
-                updateStatistics();
-
-                // 最初のグラフを表示
-                drawGenreChart();
-
-                // コンソール確認用
-                console.log("読み込み完了:", movies.length, "作品");
-
-            } catch (error) {
-
-                console.error(error);
-                showError("映画データの処理中にエラーが発生しました。");
-
-            }
-
-        },
-
-        error: function (error) {
-
-            console.error(error);
-            showError("CSVファイルを読み込めませんでした。");
-
-        }
-
-    });
-
+  return response.json();
 }
 
+// 数字の表示
+function formatNumber(value) {
+  if (value === null || value === undefined || value === "") {
+    return "---";
+  }
 
-/* =========================================
-   CSVデータ変換
-========================================= */
-
-function convertMovie(row) {
-
-    const genres = extractNames(row.genres);
-    const countries = extractCountryCodes(row.production_countries);
-
-    const releaseDate = row.release_date || "";
-
-    const year = releaseDate.length >= 4
-        ? releaseDate.substring(0, 4)
-        : "不明";
-
-    return {
-
-        id: row.id || "",
-
-        title: row.title || "",
-        originalTitle: row.original_title || "",
-
-        overview: row.overview || "",
-        tagline: row.tagline || "",
-
-        genres: genres,
-        countries: countries,
-
-        year: year,
-
-        runtime: toNumber(row.runtime),
-        popularity: toNumber(row.popularity),
-
-        voteAverage: toNumber(row.vote_average),
-        voteCount: toNumber(row.vote_count),
-
-        revenue: toNumber(row.revenue),
-
-        posterPath: row.poster_path || ""
-
-    };
-
+  return Number(value).toLocaleString("ja-JP");
 }
 
+// 評価などの小数表示
+function formatDecimal(value) {
+  if (value === null || value === undefined || value === "") {
+    return "---";
+  }
 
-/* =========================================
-   ジャンル抽出
-========================================= */
-
-function extractNames(value) {
-
-    if (!value) return [];
-
-    const matches = [
-        ...String(value).matchAll(/'name':\s*'((?:\\'|[^'])*)'/g)
-    ];
-
-    return [...new Set(
-        matches.map(match => match[1].replace(/\\'/g, "'"))
-    )];
-
+  return Number(value).toFixed(1);
 }
 
-
-/* =========================================
-   国コード抽出
-========================================= */
-
-function extractCountryCodes(value) {
-
-    if (!value) return [];
-
-    const matches = [
-        ...String(value).matchAll(/'iso_3166_1':\s*'([A-Z]{2})'/g)
-    ];
-
-    return [...new Set(matches.map(match => match[1]))];
-
+// 公開年
+function getYear(date) {
+  return date ? date.substring(0, 4) : "---";
 }
 
-
-/* =========================================
-   数値変換
-========================================= */
-
-function toNumber(value) {
-
-    const number = Number(value);
-
-    return Number.isFinite(number) ? number : 0;
-
+// ジャンル名
+function getGenreName(name) {
+  return genreTranslations[name] || name;
 }
 
-
-/* =========================================
-   データ概要の更新
-========================================= */
-
-function updateStatistics() {
-
-    // 映画数
-    movieCountElement.textContent =
-        movies.length.toLocaleString("ja-JP");
-
-    // 全作品に含まれるジャンルを集計
-    const allGenres = new Set();
-
-    movies.forEach(movie => {
-
-        movie.genres.forEach(genre => {
-            allGenres.add(genre);
-        });
-
-    });
-
-    // ジャンル数
-    genreCountElement.textContent = allGenres.size;
-
+// 読み込み表示
+function showLoading(show) {
+  loadingMessage.hidden = !show;
 }
 
-
-/* =========================================
-   エラー表示
-========================================= */
-
+// エラー表示
 function showError(message) {
-
-    loadingMessage.hidden = true;
-
-    errorMessage.textContent = message;
-    errorMessage.hidden = false;
-
+  errorMessage.textContent = message;
+  errorMessage.hidden = false;
 }
 
+function hideError() {
+  errorMessage.hidden = true;
+}
 
-/* =========================================
-   国別ジャンル構成グラフ
-========================================= */
+// 複数APIを同時に呼び出す際の負荷を抑える
+async function runWithLimit(items, limit, callback) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
 
-function drawGenreChart() {
+  async function worker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex++;
 
-    const countryCode = countrySelect.value;
-    const countryName = COUNTRIES[countryCode];
-
-    // 選択した国の映画
-    const countryMovies = movies.filter(movie =>
-        movie.countries.includes(countryCode)
-    );
-
-    // ジャンル別の作品数
-    const genreCounts = {};
-
-    countryMovies.forEach(movie => {
-
-        movie.genres.forEach(genre => {
-
-            genreCounts[genre] =
-                (genreCounts[genre] || 0) + 1;
-
-        });
-
-    });
-
-    // 作品数の多い順
-    const sortedGenres = Object.entries(genreCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 15);
-
-    const labels = sortedGenres.map(item =>
-        GENRE_NAMES[item[0]] || item[0]
-    );
-
-    const values = sortedGenres.map(item => item[1]);
-
-    // 前のグラフを削除
-    if (genreChart) {
-        genreChart.destroy();
+      results[index] = await callback(items[index], index);
     }
+  }
 
-    genreChart = new Chart(genreCanvas, {
+  const workers = Array.from(
+    { length: Math.min(limit, items.length) },
+    () => worker()
+  );
 
-        type: "bar",
+  await Promise.all(workers);
 
-        data: {
-
-            labels: labels,
-
-            datasets: [{
-
-                label: "映画の作品数",
-
-                data: values,
-
-                backgroundColor: COLORS,
-
-                borderRadius: 5
-
-            }]
-
-        },
-
-        options: {
-
-            indexAxis: "y",
-
-            responsive: true,
-
-            maintainAspectRatio: false,
-
-            plugins: {
-
-                legend: {
-
-                    labels: {
-                        color: "#f1f3f5"
-                    }
-
-                }
-
-            },
-
-            scales: {
-
-                x: {
-
-                    beginAtZero: true,
-
-                    ticks: {
-                        color: "#aeb4c0"
-                    },
-
-                    grid: {
-                        color: "#303642"
-                    },
-
-                    title: {
-                        display: true,
-                        text: "作品数",
-                        color: "#aeb4c0"
-                    }
-
-                },
-
-                y: {
-
-                    ticks: {
-                        color: "#f1f3f5"
-                    },
-
-                    grid: {
-                        display: false
-                    }
-
-                }
-
-            },
-
-            // ジャンルをクリック
-            onClick: function (event, elements) {
-
-                if (elements.length === 0) return;
-
-                const index = elements[0].index;
-
-                const genre = sortedGenres[index][0];
-
-                openGenreComparison(genre);
-
-            }
-
-        }
-
-    });
-
-    // タイトル変更
-    document.getElementById("genreChartTitle").textContent =
-        `${countryName}のジャンル別作品数`;
-
-    // 画面切り替え
-    genreView.hidden = false;
-    comparisonView.hidden = true;
-    rankingSection.hidden = true;
-
+  return results;
 }
 
+// 初期化
+async function initialize() {
+  try {
+    showLoading(true);
+    hideError();
 
-/* =========================================
-   ジャンル別・6か国人気度比較
-========================================= */
+    // ジャンル一覧を取得
+    const genreData = await fetchAPI("/api/genres?language=ja-JP");
 
-function openGenreComparison(genre) {
+    genres = genreData.genres || [];
 
-    selectedGenre = genre;
+    genreCount.textContent = genres.length;
 
-    const genreName = GENRE_NAMES[genre] || genre;
+    // 初期国の映画総数
+    const initialMovies = await fetchAPI(
+      `/api/discover?country=${currentCountry}&page=1`
+    );
 
-    // 画面切り替え
-    genreView.hidden = true;
-    comparisonView.hidden = false;
-    rankingSection.hidden = true;
+    movieCount.textContent = formatNumber(initialMovies.total_results);
 
-    // タイトル
-    document.getElementById("comparisonTitle").textContent =
-        `${genreName}映画の国別人気度`;
+    // 初期ランキング
+    renderRanking(initialMovies.results || [], currentCountry, null);
 
-    // 6か国のデータ
-    const countryData = Object.keys(COUNTRIES).map(code => {
+    // ジャンル構成
+    await drawGenreChart(currentCountry);
 
-        const targetMovies = movies.filter(movie =>
+    showLoading(false);
 
-            movie.countries.includes(code) &&
-            movie.genres.includes(genre) &&
-            movie.popularity > 0 &&
-            movie.voteCount >= 50
+  } catch (error) {
+    console.error(error);
+    showLoading(false);
+    showError(
+      "映画データの取得に失敗しました。Workerの設定やAPI接続を確認してください。"
+    );
+  }
+}
 
+// 国別ジャンル構成
+async function drawGenreChart(country) {
+  try {
+    showLoading(true);
+    hideError();
+
+    currentCountry = country;
+
+    genreChartTitle.textContent =
+      `${countries[country]}のジャンル別作品数`;
+
+    // すでに取得済みならキャッシュを利用
+    if (!genreCountCache.has(country)) {
+      const results = await runWithLimit(genres, 4, async (genre) => {
+        const data = await fetchAPI(
+          `/api/discover?country=${country}&genre=${genre.id}&page=1`
         );
 
-        // 平均Popularity
-        const averagePopularity = targetMovies.length > 0
-
-            ? targetMovies.reduce(
-                (sum, movie) => sum + movie.popularity,
-                0
-            ) / targetMovies.length
-
-            : 0;
-
         return {
-
-            code: code,
-
-            name: COUNTRIES[code],
-
-            popularity: Number(averagePopularity.toFixed(2)),
-
-            count: targetMovies.length
-
+          id: genre.id,
+          name: getGenreName(genre.name),
+          count: data.total_results || 0
         };
+      });
 
-    });
-
-    // 古いグラフを削除
-    if (countryChart) {
-        countryChart.destroy();
+      genreCountCache.set(country, results);
     }
 
-    countryChart = new Chart(countryCanvas, {
+    const chartData = genreCountCache.get(country);
 
-        type: "bar",
+    if (genreChart) {
+      genreChart.destroy();
+    }
 
-        data: {
+    const ctx = document.getElementById("genreChart");
 
-            labels: countryData.map(item => item.name),
+    genreChart = new Chart(ctx, {
+      type: "bar",
 
-            datasets: [{
+      data: {
+        labels: chartData.map(item => item.name),
 
-                label: "平均人気度",
+        datasets: [{
+          label: "映画の作品数",
+          data: chartData.map(item => item.count),
+          backgroundColor: "#719cff",
+          borderRadius: 5,
+          barThickness: 13
+        }]
+      },
 
-                data: countryData.map(item => item.popularity),
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        maintainAspectRatio: false,
 
-                backgroundColor: COLORS,
+        plugins: {
+          legend: {
+            labels: {
+              color: "#f1f3f5"
+            }
+          },
 
-                borderRadius: 6
-
-            }]
-
+          tooltip: {
+            callbacks: {
+              label: context =>
+                `作品数: ${formatNumber(context.raw)}`
+            }
+          }
         },
 
-        options: {
-
-            responsive: true,
-
-            maintainAspectRatio: false,
-
-            plugins: {
-
-                legend: {
-
-                    labels: {
-                        color: "#f1f3f5"
-                    }
-
-                },
-
-                tooltip: {
-
-                    callbacks: {
-
-                        afterLabel: function (context) {
-
-                            const item = countryData[context.dataIndex];
-
-                            return `対象作品数：${item.count}作品`;
-
-                        }
-
-                    }
-
-                }
-
+        scales: {
+          x: {
+            beginAtZero: true,
+            ticks: {
+              color: "#aeb4c0"
             },
-
-            scales: {
-
-                x: {
-
-                    ticks: {
-                        color: "#f1f3f5"
-                    },
-
-                    grid: {
-                        display: false
-                    }
-
-                },
-
-                y: {
-
-                    beginAtZero: true,
-
-                    ticks: {
-                        color: "#aeb4c0"
-                    },
-
-                    grid: {
-                        color: "#303642"
-                    },
-
-                    title: {
-                        display: true,
-                        text: "平均Popularity",
-                        color: "#aeb4c0"
-                    }
-
-                }
-
+            grid: {
+              color: "#303642"
             },
-
-            // 国をクリック
-            onClick: function (event, elements) {
-
-                if (elements.length === 0) return;
-
-                const index = elements[0].index;
-
-                const countryCode = countryData[index].code;
-
-                showRanking(countryCode, genre);
-
+            title: {
+              display: true,
+              text: "作品数",
+              color: "#aeb4c0"
             }
+          },
 
+          y: {
+            ticks: {
+              color: "#f1f3f5"
+            },
+            grid: {
+              display: false
+            }
+          }
+        },
+
+        onClick: (event, elements) => {
+          if (!elements.length) return;
+
+          const index = elements[0].index;
+          const selectedGenre = chartData[index];
+
+          openGenreComparison(selectedGenre);
+        }
+      }
+    });
+
+    showLoading(false);
+
+  } catch (error) {
+    console.error(error);
+    showLoading(false);
+    showError("ジャンルデータの取得に失敗しました。");
+  }
+}
+
+// ジャンルを選択して6か国を比較
+async function openGenreComparison(genre) {
+  try {
+    showLoading(true);
+    hideError();
+
+    currentGenre = genre;
+
+    genreView.hidden = true;
+    comparisonView.hidden = false;
+
+    comparisonTitle.textContent =
+      `${genre.name}の6か国人気比較`;
+
+    const results = await runWithLimit(
+      Object.keys(countries),
+      3,
+      async country => {
+        const cacheKey = `${country}-${genre.id}`;
+
+        if (comparisonCache.has(cacheKey)) {
+          return comparisonCache.get(cacheKey);
         }
 
-    });
-
-}
-
-
-/* =========================================
-   映画ランキングTOP5
-========================================= */
-
-function showRanking(countryCode, genre) {
-
-    const countryName = COUNTRIES[countryCode];
-
-    const genreName = GENRE_NAMES[genre] || genre;
-
-    // 条件に合う映画を取得
-    const targetMovies = movies
-
-        .filter(movie =>
-
-            movie.countries.includes(countryCode) &&
-            movie.genres.includes(genre) &&
-            movie.popularity > 0 &&
-            movie.voteCount >= 50
-
-        )
-
-        .sort((a, b) =>
-            b.popularity - a.popularity
-        )
-
-        .slice(0, 5);
-
-
-    // タイトル更新
-    document.getElementById("rankingTitle").textContent =
-        `${countryName}の${genreName}映画ランキング TOP 5`;
-
-    document.getElementById("rankingDescription").textContent =
-        `${countryName}の${genreName}映画をPopularity順に表示しています。`;
-
-
-    // 表の中身をリセット
-    rankingBody.innerHTML = "";
-
-
-    if (targetMovies.length === 0) {
-
-        const row = document.createElement("tr");
-
-        const cell = document.createElement("td");
-
-        cell.colSpan = 7;
-
-        cell.textContent = "該当する映画データがありません。";
-
-        row.appendChild(cell);
-
-        rankingBody.appendChild(row);
-
-    } else {
-
-        targetMovies.forEach((movie, index) => {
-
-            const row = document.createElement("tr");
-
-            row.className = "movie-row";
-
-            const values = [
-
-                index + 1,
-
-                movie.title,
-
-                movie.year,
-
-                movie.voteAverage > 0
-                    ? movie.voteAverage.toFixed(1)
-                    : "不明",
-
-                movie.voteCount.toLocaleString(),
-
-                movie.popularity.toFixed(2),
-
-                movie.revenue > 0
-                    ? formatMoney(movie.revenue)
-                    : "不明"
-
-            ];
-
-            values.forEach((value, cellIndex) => {
-
-                const cell = document.createElement("td");
-
-                cell.textContent = value;
-
-                if (cellIndex === 0) {
-                    cell.className = "rank-number";
-                }
-
-                if (cellIndex === 1) {
-                    cell.className = "movie-title";
-                }
-
-                row.appendChild(cell);
-
-            });
-
-            // 映画をクリックすると詳細表示
-            row.addEventListener("click", () => {
-                openMovieDetail(movie);
-            });
-
-            rankingBody.appendChild(row);
-
-        });
-
-    }
-
-    // ランキングを表示
-    rankingSection.hidden = false;
-
-    rankingSection.scrollIntoView({
-        behavior: "smooth",
-        block: "start"
-    });
-
-}
-
-
-/* =========================================
-   映画詳細モーダル
-========================================= */
-
-function openMovieDetail(movie) {
-
-    // 基本情報
-    setText("detailTitle", movie.title);
-
-    setText(
-        "detailOriginalTitle",
-        movie.originalTitle
-            ? `原題：${movie.originalTitle}`
-            : "原題：不明"
-    );
-
-    setText("detailYear", movie.year);
-
-    setText(
-        "detailGenres",
-        movie.genres
-            .map(genre => GENRE_NAMES[genre] || genre)
-            .join(" / ")
-    );
-
-    setText(
-        "detailRuntime",
-        movie.runtime > 0
-            ? `${movie.runtime}分`
-            : "上映時間不明"
-    );
-
-    // あらすじ
-    setText(
-        "detailOverview",
-        movie.overview || "作品概要は登録されていません。"
-    );
-
-    // 数値情報
-    setText(
-        "detailRating",
-        movie.voteAverage > 0
-            ? `${movie.voteAverage.toFixed(1)} / 10`
-            : "不明"
-    );
-
-    setText(
-        "detailVotes",
-        movie.voteCount.toLocaleString()
-    );
-
-    setText(
-        "detailPopularity",
-        movie.popularity.toFixed(2)
-    );
-
-    setText(
-        "detailRevenue",
-        movie.revenue > 0
-            ? formatMoney(movie.revenue)
-            : "不明"
-    );
-
-    // キャッチコピー
-    setText("detailTagline", movie.tagline);
-
-
-    // ポスター画像
-    const poster = document.getElementById("detailPoster");
-
-    const placeholder =
-        document.getElementById("posterPlaceholder");
-
-    if (movie.posterPath) {
-
-        poster.src =
-            `https://image.tmdb.org/t/p/w500${movie.posterPath}`;
-
-        poster.hidden = false;
-        placeholder.hidden = true;
-
-        poster.onerror = function () {
-
-            poster.hidden = true;
-            placeholder.hidden = false;
-
+        const data = await fetchAPI(
+          `/api/discover?country=${country}&genre=${genre.id}&page=1`
+        );
+
+        const movies = data.results || [];
+
+        const average = movies.length
+          ? movies.reduce(
+              (sum, movie) => sum + Number(movie.popularity || 0),
+              0
+            ) / movies.length
+          : 0;
+
+        const result = {
+          country,
+          name: countries[country],
+          popularity: average,
+          count: data.total_results || 0,
+          sampleCount: movies.length
         };
 
-    } else {
+        comparisonCache.set(cacheKey, result);
 
-        poster.hidden = true;
-        placeholder.hidden = false;
+        return result;
+      }
+    );
 
+    drawCountryChart(results);
+
+    showLoading(false);
+
+  } catch (error) {
+    console.error(error);
+    showLoading(false);
+    showError("国別の人気比較データを取得できませんでした。");
+  }
+}
+
+// 6か国比較グラフ
+function drawCountryChart(data) {
+  if (countryChart) {
+    countryChart.destroy();
+  }
+
+  const ctx = document.getElementById("countryChart");
+
+  countryChart = new Chart(ctx, {
+    type: "bar",
+
+    data: {
+      labels: data.map(item => item.name),
+
+      datasets: [{
+        label: "Popularity平均",
+        data: data.map(item => item.popularity),
+        backgroundColor: [
+          "#719cff",
+          "#f59e72",
+          "#6cc5a1",
+          "#d5ad65",
+          "#bd91e8",
+          "#e58da8"
+        ],
+        borderRadius: 6
+      }]
+    },
+
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+
+      plugins: {
+        legend: {
+          labels: {
+            color: "#f1f3f5"
+          }
+        },
+
+        tooltip: {
+          callbacks: {
+            afterLabel: context => {
+              const item = data[context.dataIndex];
+
+              return `対象作品数: ${formatNumber(item.count)}件\n平均計算対象: ${item.sampleCount}作品`;
+            }
+          }
+        }
+      },
+
+      scales: {
+        x: {
+          ticks: {
+            color: "#f1f3f5"
+          },
+          grid: {
+            display: false
+          }
+        },
+
+        y: {
+          beginAtZero: true,
+          ticks: {
+            color: "#aeb4c0"
+          },
+          grid: {
+            color: "#303642"
+          }
+        }
+      },
+
+      onClick: (event, elements) => {
+        if (!elements.length) return;
+
+        const index = elements[0].index;
+        const selected = data[index];
+
+        showCountryRanking(selected.country);
+      }
     }
-
-
-    // モーダル表示
-    movieModal.hidden = false;
-
-    document.body.style.overflow = "hidden";
-
+  });
 }
 
+// 国別ランキング
+async function showCountryRanking(country) {
+  try {
+    showLoading(true);
+    hideError();
 
-/* =========================================
-   テキスト更新
-========================================= */
+    const genreParameter = currentGenre
+      ? `&genre=${currentGenre.id}`
+      : "";
 
-function setText(id, value) {
+    const data = await fetchAPI(
+      `/api/discover?country=${country}${genreParameter}&page=1`
+    );
 
-    const element = document.getElementById(id);
+    renderRanking(data.results || [], country, currentGenre);
 
-    if (element) {
-        element.textContent = value;
-    }
+    showLoading(false);
 
-}
-
-
-/* =========================================
-   金額表示
-========================================= */
-
-function formatMoney(value) {
-
-    return "$" + Math.round(value).toLocaleString("en-US");
-
-}
-
-
-/* =========================================
-   モーダルを閉じる
-========================================= */
-
-function hideMovieDetail() {
-
-    movieModal.hidden = true;
-
-    document.body.style.overflow = "";
-
-}
-
-closeModal.addEventListener("click", hideMovieDetail);
-
-modalOverlay.addEventListener("click", hideMovieDetail);
-
-
-// Escapeキーでも閉じる
-document.addEventListener("keydown", event => {
-
-    if (event.key === "Escape") {
-        hideMovieDetail();
-    }
-
-});
-
-
-/* =========================================
-   戻るボタン
-========================================= */
-
-backButton.addEventListener("click", () => {
-
-    genreView.hidden = false;
-    comparisonView.hidden = true;
-    rankingSection.hidden = true;
-
-    genreView.scrollIntoView({
-        behavior: "smooth",
-        block: "start"
+    document.querySelector(".ranking-section").scrollIntoView({
+      behavior: "smooth",
+      block: "start"
     });
 
+  } catch (error) {
+    console.error(error);
+    showLoading(false);
+    showError("ランキングを取得できませんでした。");
+  }
+}
+
+// ランキング表示
+function renderRanking(movies, country, genre) {
+  const title = genre
+    ? `${countries[country]}の${genre.name}映画ランキング TOP 5`
+    : `${countries[country]}の映画ランキング TOP 5`;
+
+  rankingTitle.textContent = title;
+
+  rankingDescription.textContent = genre
+    ? `${genre.name}ジャンルの人気度が高い映画を表示しています。`
+    : "人気度の高い映画を表示しています。";
+
+  rankingBody.innerHTML = "";
+
+  const topMovies = movies.slice(0, 5);
+
+  if (!topMovies.length) {
+    rankingBody.innerHTML = `
+      <tr>
+        <td colspan="7">映画データがありません。</td>
+      </tr>
+    `;
+    return;
+  }
+
+  topMovies.forEach((movie, index) => {
+    const tr = document.createElement("tr");
+
+    tr.className = "movie-row";
+
+    const revenue = movie.revenue
+      ? `$${formatNumber(movie.revenue)}`
+      : "---";
+
+    tr.innerHTML = `
+      <td class="rank-number">${index + 1}</td>
+      <td class="movie-title"></td>
+      <td>${getYear(movie.release_date)}</td>
+      <td>${formatDecimal(movie.vote_average)}</td>
+      <td>${formatNumber(movie.vote_count)}</td>
+      <td>${formatDecimal(movie.popularity)}</td>
+      <td>${revenue}</td>
+    `;
+
+    tr.querySelector(".movie-title").textContent =
+      movie.title || "タイトル不明";
+
+    tr.addEventListener("click", () => {
+      openMovieDetail(movie.id);
+    });
+
+    rankingBody.appendChild(tr);
+  });
+}
+
+// 映画詳細
+async function openMovieDetail(movieId) {
+  try {
+    showLoading(true);
+
+    const movie = await fetchAPI(`/api/movie/${movieId}`);
+
+    // ポスター
+    const poster = document.getElementById("detailPoster");
+    const placeholder = document.getElementById("posterPlaceholder");
+
+    if (movie.poster_path) {
+      poster.src =
+        `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
+
+      poster.hidden = false;
+      placeholder.hidden = true;
+
+      poster.onerror = () => {
+        poster.hidden = true;
+        placeholder.hidden = false;
+      };
+    } else {
+      poster.hidden = true;
+      placeholder.hidden = false;
+    }
+
+    // タイトル
+    document.getElementById("detailTitle").textContent =
+      movie.title || "タイトル不明";
+
+    document.getElementById("detailOriginalTitle").textContent =
+      movie.original_title || "";
+
+    // 基本情報
+    document.getElementById("detailYear").textContent =
+      getYear(movie.release_date);
+
+    document.getElementById("detailGenres").textContent =
+      (movie.genres || [])
+        .map(genre => getGenreName(genre.name))
+        .join(" / ") || "ジャンル不明";
+
+    document.getElementById("detailRuntime").textContent =
+      movie.runtime ? `${movie.runtime}分` : "上映時間不明";
+
+    // 概要
+    document.getElementById("detailOverview").textContent =
+      movie.overview || "作品概要は登録されていません。";
+
+    // 数値情報
+    document.getElementById("detailRating").textContent =
+      formatDecimal(movie.vote_average);
+
+    document.getElementById("detailVotes").textContent =
+      formatNumber(movie.vote_count);
+
+    document.getElementById("detailPopularity").textContent =
+      formatDecimal(movie.popularity);
+
+    document.getElementById("detailRevenue").textContent =
+      movie.revenue
+        ? `$${formatNumber(movie.revenue)}`
+        : "---";
+
+    // キャッチコピー
+    document.getElementById("detailTagline").textContent =
+      movie.tagline || "";
+
+    movieModal.hidden = false;
+    document.body.style.overflow = "hidden";
+
+    showLoading(false);
+
+  } catch (error) {
+    console.error(error);
+    showLoading(false);
+    showError("映画の詳細情報を取得できませんでした。");
+  }
+}
+
+// モーダルを閉じる
+function hideMovieModal() {
+  movieModal.hidden = true;
+  document.body.style.overflow = "";
+}
+
+closeModal.addEventListener("click", hideMovieModal);
+modalOverlay.addEventListener("click", hideMovieModal);
+
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && !movieModal.hidden) {
+    hideMovieModal();
+  }
 });
 
+// 国選択
+countrySelect.addEventListener("change", async event => {
+  const country = event.target.value;
 
-/* =========================================
-   国の選択変更
-========================================= */
+  currentGenre = null;
 
-countrySelect.addEventListener("change", () => {
+  genreView.hidden = false;
+  comparisonView.hidden = true;
 
-    drawGenreChart();
+  await drawGenreChart(country);
 
+  try {
+    const data = await fetchAPI(
+      `/api/discover?country=${country}&page=1`
+    );
+
+    movieCount.textContent = formatNumber(data.total_results);
+
+    renderRanking(data.results || [], country, null);
+
+  } catch (error) {
+    console.error(error);
+    showError("映画データを取得できませんでした。");
+  }
 });
+
+// 戻るボタン
+backButton.addEventListener("click", () => {
+  comparisonView.hidden = true;
+  genreView.hidden = false;
+});
+
+// 起動
+initialize();
